@@ -36,16 +36,24 @@ La descripción va en minúsculas, en infinitivo y sin punto final. Los commits 
 
 ## Pull Requests
 
-Cada sprint se cierra el viernes con un Pull Request hacia `main`.
+Cada tarea entra a `main` con su propio Pull Request.
 
 1. Abrir el PR con un título en formato Conventional Commits.
 2. Revisarlo línea por línea, como si fuera de otra persona.
 3. Mezclarlo a `main`.
 4. Borrar la rama.
 
+```
+gh pr create --base main --title "docs: definir convenciones" --body "Qué cambia y cómo revisarlo"
+```
+
+## Cierre del sprint
+
+Cada viernes se hace la revisión general del sprint: repasar lo mezclado durante la semana, anotar qué se aprendió y qué costó, y crear el tag de versión.
+
 ## Versiones
 
-Al cerrar cada sprint se crea un tag de versión sobre `main`: `v0.0.1` para el sprint 0, `v0.1.0` para el sprint 1, y así hasta `v1.0.0` con la publicación en el App Store.
+El tag de versión se crea sobre `main` al cerrar cada sprint: `v0.0.1` para el sprint 0, `v0.1.0` para el sprint 1, y así hasta `v1.0.0` con la publicación en el App Store.
 
 ```
 git switch main
