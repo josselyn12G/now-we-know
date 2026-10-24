@@ -7,4 +7,3 @@ export interface Usuario {
   creado_en: string;
   actualizado_en: string;
 }
-
