@@ -13,7 +13,10 @@
 
 1. **`?` contra `| null`.** El `?` dice que la propiedad puede no existir; `| null` dice que siempre existe pero puede estar vacía. Una columna de la base de datos existe siempre, así que se tipa con `| null`. Un tipo tiene que describir cómo llegan los datos de verdad.
 2. **Claves compuestas.** En `CategoriaLugar`, la clave es `categoria_id` + `lugar_id`. Si `agregado_por` formara parte de la clave, dos personas podrían agregar el mismo lugar a la misma categoría, y se duplicaría.
-3. **Uniones contra `enum`.** Las uniones se borran al compilar y aceptan directamente el texto que devuelve Supabase. Los `enum` generan código y obligan a convertir los datos.
+3. **Por qué elegí uniones y no `enum`.** TypeScript ofrece dos formas de limitar un campo a ciertos valores. Comparé las dos y en `RolGrupo` y `PlataformaOrigen` usé uniones (`"Creador" | "Miembro"`), no `enum`:
+   - Con una unión escribo el valor directo, `rol: "Creador"`. Con un `enum` tendría que importarlo y escribir `rol: RolGrupo.Creador`.
+   - Supabase devuelve texto, `"Creador"`, y ese texto encaja directo en una unión. En un `enum`, no.
+   - La unión se borra al compilar; el `enum` se convierte en código que viaja dentro de la app.
 
 ## Desafíos
 
