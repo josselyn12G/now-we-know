@@ -1,6 +1,6 @@
 # Documento 02 · Modelo de datos
 
-**Versión 1.0, cerrado.**
+**Versión 1.1, cerrado.** Incorpora las decisiones tomadas al escribir los tipos (sprint 1).
 
 Entidades y relaciones del plan piloto de Now We Know. Incorpora todas las decisiones de la revisión. Listo para pasar a tipos y backend.
 
@@ -72,9 +72,11 @@ Todos los comentarios del code review están resueltos.
 
 ## 5. Campos
 
-Campos acordados, sin tipos todavía.
+Los tipos de TypeScript de cada tabla viven en `src/types/`, un archivo por tabla. Un campo que puede estar vacío se tipa como `tipo | null`, nunca con `?`, porque la columna existe siempre en la fila.
 
-**Convención para todas las tablas:** `id` como UUID (salvo las intermedias, que usan clave compuesta), y `creado_en` y `actualizado_en` para auditoría.
+**Convención para las entidades:** `id` como UUID, y `creado_en` y `actualizado_en` para auditoría. Las fechas viajan como texto ISO 8601.
+
+**Convención para las tablas intermedias:** clave primaria compuesta, sin `id`. Su fecha propia (`unido_en`, `agregado_en`, `visitado_en`) cumple el papel de `creado_en`, y no llevan `actualizado_en`.
 
 ### Usuario
 
@@ -84,7 +86,7 @@ Campos acordados, sin tipos todavía.
 | `nombre_usuario` | Único | Con el que se une a grupos (CU-04). |
 | `nombre_visible` | | Cómo lo ven los demás miembros. |
 | `email` | Único | Contacto y recuperación de cuenta. |
-| `foto_url` | | Foto de perfil, opcional. |
+| `foto_url` | Nulo | Foto de perfil, opcional. |
 
 No hay campo de contraseña a propósito: la contraseña la maneja el servicio de autenticación, nunca la tabla.
 
@@ -93,12 +95,14 @@ No hay campo de contraseña a propósito: la contraseña la maneja el servicio d
 | Campo | Clave | Para qué |
 |---|---|---|
 | `id` | PK | Identificador interno. |
-| `google_place_id` | Único | Evita duplicados del mismo café (R5). |
+| `google_place_id` | Único, nulo | Evita duplicados del mismo café (R5). Nulo en los lugares ingresados a mano. |
 | `nombre` | | Nombre del lugar. |
-| `direccion` | | Dirección legible. |
-| `latitud`, `longitud` | | Se guardan desde ya para los recordatorios por cercanía de la fase 2. |
-| `imagen_url` | | Imagen del lugar (CU-01). |
-| `google_maps_url` | | Para "Cómo llegar" (CU-02). |
+| `direccion` | Nulo | Dirección legible. Nula si un lugar manual no se pudo ubicar. |
+| `latitud`, `longitud` | Nulo | Se guardan desde ya para los recordatorios por cercanía de la fase 2. |
+| `imagen_url` | Nulo | Imagen del lugar (CU-01). |
+| `google_maps_url` | Nulo | Para "Cómo llegar" (CU-02). |
+
+**Lugares ingresados a mano (CU-01 A1).** La app intenta encontrarles dirección automáticamente; si no la encuentra, el lugar se guarda igual, sin ID de Google ni ubicación. Como no tienen `google_place_id`, dos lugares manuales con el mismo nombre pueden duplicarse. Se acepta para el piloto, porque el ingreso manual es el caso raro. En Postgres, varios `null` en una columna `UNIQUE` no chocan entre sí.
 
 ### Categoria
 
@@ -108,7 +112,7 @@ No hay campo de contraseña a propósito: la contraseña la maneja el servicio d
 | `nombre` | | "Comida", "Plan con mi novio". |
 | `creador_id` | FK → Usuario | Quién la creó. |
 | `grupo_id` | FK → Grupo, nulo | Nulo = categoría personal, solo visible para su creador. |
-| `icono` | | Ícono de la categoría, también para las sugeridas. |
+| `icono` | Nulo | Ícono de la categoría, también para las sugeridas. |
 
 ### GrupoDeAmigos
 
@@ -120,13 +124,17 @@ No hay campo de contraseña a propósito: la contraseña la maneja el servicio d
 | `codigo_invitacion` | Único | Código para unirse (R7). |
 | `codigo_expira_en` | | Para el flujo alterno de código vencido (CU-04 A1). |
 
+El código se genera al mismo tiempo que el grupo, así que todo grupo tiene siempre un código y una fecha de vencimiento. Regenerar el código reemplaza los dos juntos.
+
 ### MiembroGrupo
 
 | Campo | Clave | Para qué |
 |---|---|---|
 | `usuario_id` + `grupo_id` | PK compuesta, ambas FK | Un usuario está una sola vez en cada grupo. |
-| `rol` | | Creador o miembro. Debe coincidir con `creador_id` del grupo. |
+| `rol` | | `"Creador"` o `"Miembro"` (tipo `RolGrupo`). Debe coincidir con `creador_id` del grupo. |
 | `unido_en` | | Desde cuándo es miembro. |
+
+**Salir del grupo borra la fila.** No se guarda historial de miembros: si existe la fila, la persona es miembro. Así las políticas de seguridad solo preguntan si la fila existe. Si vuelve a unirse, se crea una fila nueva.
 
 ### CategoriaLugar
 
@@ -134,8 +142,8 @@ No hay campo de contraseña a propósito: la contraseña la maneja el servicio d
 |---|---|---|
 | `categoria_id` + `lugar_id` | PK compuesta, ambas FK | Un lugar aparece una vez por categoría. |
 | `agregado_por` | FK → Usuario | Quién lo agregó. |
-| `enlace_origen` | | El post de TikTok o Instagram. Va aquí y no en Lugar porque cada persona lo encontró en un post distinto. |
-| `plataforma_origen` | | TikTok, Instagram o manual. |
+| `enlace_origen` | Nulo | El post de TikTok o Instagram. Va aquí y no en Lugar porque cada persona lo encontró en un post distinto. |
+| `plataforma_origen` | | `"TikTok"`, `"Instagram"` o `"Manual"` (tipo `PlataformaOrigen`). |
 | `agregado_en` | | Cuándo se agregó a la categoría. |
 
 No lleva estado: lo visitado vive en la tabla Visita.
@@ -145,7 +153,7 @@ No lleva estado: lo visitado vive en la tabla Visita.
 | Campo | Clave | Para qué |
 |---|---|---|
 | `usuario_id` + `categoria_id` | PK compuesta, ambas FK | Una fila por usuario y categoría. |
-| `archivada_en` | | Cuándo la archivó. Nulo = no archivada. |
+| `archivada_en` | Nulo | Cuándo la archivó. Nulo = no archivada. |
 
 ### Visita
 
@@ -158,8 +166,8 @@ No hace falta un campo "estado": pendiente = no existe la fila, visitado = exist
 
 ## 6. Siguiente paso
 
-Modelo cerrado. Siguiente: asignar tipos a cada campo y crear las tablas en el backend.
+Tipos escritos en `src/types/` (sprint 1). Siguiente: crear las tablas en Supabase (sprint 3).
 
 ---
 
-Anterior: [01 · Definición y alcance](01-definicion-y-alcance.md)
+Anterior: [01 · Definición y alcance](01-definicion-y-alcance.md) · Siguiente: [05 · Arquitectura](05-arquitectura.md)
